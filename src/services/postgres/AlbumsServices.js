@@ -1,4 +1,5 @@
 const {Pool} = require('pg');
+const _ = require('lodash');
 const {nanoid} = require('nanoid');
 const InvariantError = require('../../exceptions/InvariantError');
 const NotFoundError = require('../../exceptions/NotFoundError');
@@ -16,7 +17,7 @@ class AlbumsService {
   }
 
   async addAlbum({name, year}) {
-    const id = nanoid(16);
+    const id = 'album-' + nanoid(16);
     const createdAt = new Date().toISOString();
     const updatedAt = createdAt;
 
@@ -44,6 +45,16 @@ class AlbumsService {
     if (!result.rows.length) {
       throw new NotFoundError('Catatan tidak ditemukan');
     }
+
+    const songQuery = {
+      text: 'SELECT id, title, performer FROM songs WHERE "albumId" = $1',
+      values: [id],
+    };
+    const songResults = await this._pool.query(songQuery);
+
+    _.assign(result.rows[0], {
+      songs: songResults.rows,
+    });
 
     return result.rows[0];
   }
