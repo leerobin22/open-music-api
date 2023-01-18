@@ -7,7 +7,7 @@ const AuthorizationError = require('../../exceptions/AuthorizationError');
 require('dotenv').config();
 
 class PlaylistsServices {
-  constructor() {
+  constructor(collaborationService) {
     this._pool = new Pool({
       user: process.env.PGUSER,
       host: process.env.PGHOST,
@@ -15,6 +15,7 @@ class PlaylistsServices {
       password: process.env.PGPASSWORD,
       port: process.env.PGPORT,
     });
+    this._collaborationService = collaborationService;
   }
 
   async addPlaylist(userId, {name}) {
@@ -36,15 +37,15 @@ class PlaylistsServices {
 
   async getPlaylist(userId) {
     const query = {
-      text: 'SELECT playlists.id, playlists.name, users.username FROM playlists JOIN users on users.id = playlists.owner where owner = $1',
+      text: `SELECT playlists.id, playlists.name, users.username 
+        FROM playlists
+        LEFT JOIN users on users.id = playlists.owner
+        LEFT JOIN collaborations ON collaborations.playlist_id = playlists.id 
+        WHERE playlists.owner = $1 OR collaborations.user_id = $1`,
       values: [userId],
     };
 
     const result = await this._pool.query(query);
-
-    if (!result.rows.length) {
-      throw new NotFoundError('Playlist tidak ditemukan');
-    }
 
     return result.rows;
   }
@@ -95,7 +96,11 @@ class PlaylistsServices {
 
   async getPlaylistSong(userId, id) {
     const getPlaylistQuery = {
-      text: 'SELECT playlists.id, playlists.name, users.username FROM playlists LEFT JOIN users on users.id = playlists.owner where playlists.id = $1 and playlists.owner = $2',
+      text: `SELECT playlists.id, playlists.name, users.username
+      FROM playlists
+      LEFT JOIN users on users.id = playlists.owner
+      LEFT JOIN collaborations on collaborations.playlist_id = playlists.id
+      WHERE (playlists.owner = $2 OR collaborations.user_id = $2) AND playlists.id = $1`,
       values: [id, userId],
     };
 
@@ -150,9 +155,25 @@ class PlaylistsServices {
     if (!result.rows.length) {
       throw new NotFoundError('Playlist tidak ditemukan');
     }
-    const note = result.rows[0];
-    if (note.owner !== userId) {
+
+    const playlists = result.rows[0];
+    if (playlists.owner !== userId) {
       throw new AuthorizationError('Anda tidak berhak mengakses resource ini');
+    }
+  }
+
+  async verifyPlaylistAccess(userId, playlistId) {
+    try {
+      await this.verifyPlaylistOwner(userId, playlistId);
+    } catch (error) {
+      if (error instanceof NotFoundError) {
+        throw error;
+      }
+      try {
+        await this._collaborationService.verifyCollaborator(userId, playlistId);
+      } catch {
+        throw error;
+      }
     }
   }
 }
