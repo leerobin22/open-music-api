@@ -28,10 +28,6 @@ exports.up = (pgm) => {
       type: 'integer',
       notNull: false,
     },
-    albumId: {
-      type: 'TEXT',
-      notNull: false,
-    },
     created_at: {
       type: 'TEXT',
       notNull: true,
