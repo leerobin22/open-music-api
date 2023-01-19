@@ -9,6 +9,7 @@ class PlaylistsHandler {
     this.postPlaylistSongHandler = this.postPlaylistSongHandler.bind(this);
     this.getPlaylistSongHandler = this.getPlaylistSongHandler.bind(this);
     this.deletePlaylistSongHandler = this.deletePlaylistSongHandler.bind(this);
+    this.getPlaylistSongActivitiesHandler = this.getPlaylistSongActivitiesHandler.bind(this);
   }
 
   async postPlaylistHandler(request, h) {
@@ -58,9 +59,11 @@ class PlaylistsHandler {
     this._validator.validatePostPlaylistSongPayload(request.payload);
     const id = request.params.id;
     const userId = request.auth.credentials.id;
+    const {songId} = request.payload;
 
     await this._service.verifyPlaylistAccess(userId, id);
-    const playlistSongId = await this._service.addPlaylistSong(id, request.payload);
+    const playlistSongId = await this._service.addPlaylistSong(id, {songId});
+    await this._service.addPlaylistSongActivities(id, {songId, userId, action: 'add'});
 
     const response = h.response({
       status: 'success',
@@ -92,13 +95,31 @@ class PlaylistsHandler {
     await this._validator.validateDeletePlaylistSongPayload(request.payload);
     const id = request.params.id;
     const userId = request.auth.credentials.id;
+    const {songId} = request.payload;
 
     await this._service.verifyPlaylistAccess(userId, id);
-    await this._service.deletePlaylistSong(id, request.payload);
+    await this._service.deletePlaylistSong(id, {songId});
+    await this._service.addPlaylistSongActivities(id, {songId, userId, action: 'delete'});
 
     return {
       status: 'success',
       message: 'Lagu berhasil dihapus dari playlist',
+    };
+  }
+
+  async getPlaylistSongActivitiesHandler(request, h) {
+    const id = request.params.id;
+    const userId = request.auth.credentials.id;
+
+    await this._service.verifyPlaylistAccess(userId, id);
+    const activities = await this._service.getPlaylistSongActivities(id);
+
+    return {
+      status: 'success',
+      data: {
+        playlistId: id,
+        activities,
+      },
     };
   }
 };

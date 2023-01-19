@@ -28,7 +28,7 @@ class AlbumsService {
     const result = await this._pool.query(query);
 
     if (!result.rows[0].id) {
-      throw new InvariantError('Catatan gagal ditambahkan');
+      throw new InvariantError('Album gagal ditambahkan');
     }
 
     return result.rows[0].id;
@@ -41,12 +41,12 @@ class AlbumsService {
     };
     const result = await this._pool.query(query);
 
-    if (!result.rows.length) {
-      throw new NotFoundError('Catatan tidak ditemukan');
+    if (!result.rowCount) {
+      throw new NotFoundError('Album tidak ditemukan');
     }
 
     const songQuery = {
-      text: 'SELECT id, title, performer FROM songs WHERE "albumId" = $1',
+      text: 'SELECT id, title, performer FROM songs WHERE album_id = $1',
       values: [id],
     };
     const songResults = await this._pool.query(songQuery);
@@ -67,7 +67,7 @@ class AlbumsService {
 
     const result = await this._pool.query(query);
 
-    if (!result.rows.length) {
+    if (!result.rowCount) {
       throw new NotFoundError('Gagal memperbarui catatan. Id tidak ditemukan');
     }
   }
@@ -80,8 +80,8 @@ class AlbumsService {
 
     const result = await this._pool.query(query);
 
-    if (!result.rows.length) {
-      throw new NotFoundError('Catatan gagal dihapus. Id tidak ditemukan');
+    if (!result.rowCount) {
+      throw new NotFoundError('Album gagal dihapus. Id tidak ditemukan');
     }
   }
 }

@@ -29,7 +29,7 @@ class PlaylistsServices {
 
     const result = await this._pool.query(query);
 
-    if (!result.rows.length) {
+    if (!result.rowCount) {
       throw new InvariantError('Playlist gagal ditambahkan');
     }
     return result.rows[0].id;
@@ -58,7 +58,7 @@ class PlaylistsServices {
 
     const result = await this._pool.query(deletePlaylistQuery);
 
-    if (!result.rows.length) {
+    if (!result.rowCount) {
       throw new NotFoundError('Playlist gagal dihapus. Id tidak ditemukan');
     }
 
@@ -76,7 +76,7 @@ class PlaylistsServices {
     };
 
     const getSongResult = await this._pool.query(getSongQuery);
-    if (!getSongResult.rows.length) {
+    if (!getSongResult.rowCount) {
       throw new NotFoundError('Lagu gagal ditambahkan. Lagu tidak ditemukan');
     }
 
@@ -88,7 +88,7 @@ class PlaylistsServices {
     };
 
     const result = await this._pool.query(addSongQuery);
-    if (!result.rows.length) {
+    if (!result.rowCount) {
       throw new InvariantError('Lagu gagal ditambahkan');
     }
     return result.rows[0].id;
@@ -105,7 +105,7 @@ class PlaylistsServices {
     };
 
     const getPlaylistResult = await this._pool.query(getPlaylistQuery);
-    if (!getPlaylistResult.rows.length) {
+    if (!getPlaylistResult.rowCount) {
       throw new NotFoundError('Playlist tidak ditemukan');
     }
 
@@ -130,7 +130,7 @@ class PlaylistsServices {
     };
     const getSongResult = await this._pool.query(getSongQuery);
 
-    if (!getSongResult.rows.length) {
+    if (!getSongResult.rowCount) {
       throw new NotFoundError('Lagu gagal dihapus. Lagu tidak ditemukan');
     }
 
@@ -140,7 +140,7 @@ class PlaylistsServices {
     };
 
     const result = await this._pool.query(deleteSongQuery);
-    if (!result.rows.length) {
+    if (!result.rowCount) {
       throw new InvariantError('Lagu gagal dihapus');
     }
   }
@@ -152,7 +152,7 @@ class PlaylistsServices {
       values: [id],
     };
     const result = await this._pool.query(query);
-    if (!result.rows.length) {
+    if (!result.rowCount) {
       throw new NotFoundError('Playlist tidak ditemukan');
     }
 
@@ -175,6 +175,42 @@ class PlaylistsServices {
         throw error;
       }
     }
+  }
+
+  async addPlaylistSongActivities(playlistId, {songId, userId, action}) {
+    const createdAt = new Date().toISOString();
+    const activitiesId = nanoid(16);
+
+    const addActivityQuery = {
+      text: 'INSERT INTO playlist_song_activities VALUES($1, $2, $3, $4, $5, $6) RETURNING id',
+      values: [activitiesId, playlistId, songId, userId, action, createdAt],
+    };
+
+    const result = await this._pool.query(addActivityQuery);
+
+    if (!result.rowCount) {
+      throw new InvariantError('Lagu gagal ditambahkan');
+    }
+    return result.rows[0].id;
+  }
+
+  async getPlaylistSongActivities(playlistId) {
+    const getActivitiesQuery = {
+      text: `SELECT users.username, songs.title, psa.action, psa.time
+      FROM playlist_song_activities psa
+      LEFT JOIN songs on songs.id = psa.song_id
+      LEFT JOIN users on users.id = psa.user_id
+      WHERE psa.playlist_id = $1`,
+      values: [playlistId],
+    };
+
+    const result = await this._pool.query(getActivitiesQuery);
+
+    if (!result.rowCount) {
+      throw new NotFoundError('Playlist tidak ditemukan');
+    }
+
+    return result.rows;
   }
 }
 
