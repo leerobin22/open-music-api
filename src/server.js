@@ -3,6 +3,7 @@ require('dotenv').config();
 const Jwt = require('@hapi/jwt');
 const ClientError = require('./exceptions/ClientError');
 const path = require('path');
+const Inert = require('@hapi/inert');
 
 const albums = require('./api/albums');
 const AlbumsService = require('./services/postgres/AlbumsServices');
@@ -60,6 +61,9 @@ const init = async () => {
   await server.register([
     {
       plugin: Jwt,
+    },
+    {
+      plugin: Inert,
     },
   ]);
 

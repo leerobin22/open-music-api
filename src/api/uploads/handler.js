@@ -10,7 +10,7 @@ class UploadsHandler {
   async postUploadImageHandler(request, h) {
     const {cover} = request.payload;
     this._validator.validateImageHeaders(cover.hapi.headers);
-    const filename = await this._service.writeFile(data, data.hapi);
+    const filename = await this._service.writeFile(cover, cover.hapi);
 
     const id = request.params.id;
     const fileUrl = `http://${process.env.HOST}:${process.env.PORT}/upload/images/${filename}`;
