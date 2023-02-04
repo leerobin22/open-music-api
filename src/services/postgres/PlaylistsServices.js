@@ -212,6 +212,21 @@ class PlaylistsServices {
 
     return result.rows;
   }
+  async playlistCheck(userId, id) {
+    const getPlaylistQuery = {
+      text: `SELECT *
+        FROM playlists
+        LEFT JOIN collaborations ON collaborations.playlist_id = playlists.id 
+        WHERE (playlists.owner = $1 OR collaborations.user_id = $1) AND playlists.id = $2`,
+      values: [userId, id],
+    };
+
+    const getPlaylistsResult = await this._pool.query(getPlaylistQuery);
+
+    if (!getPlaylistsResult.rowCount) {
+      throw new NotFoundError('Playlist tidak ditemukan');
+    }
+  }
 }
 
 module.exports = PlaylistsServices;
