@@ -2,6 +2,7 @@ const Hapi = require('@hapi/hapi');
 require('dotenv').config();
 const Jwt = require('@hapi/jwt');
 const ClientError = require('./exceptions/ClientError');
+const path = require('path');
 
 const albums = require('./api/albums');
 const AlbumsService = require('./services/postgres/AlbumsServices');
@@ -34,7 +35,7 @@ const ProducerService = require('./services/rabbitmq/ProducerService');
 const ExportsValidator = require('./validators/exports');
 
 const uploads = require('./api/uploads');
-const StorageService = require('./services/S3/StorageService');
+const StorageService = require('./services/storage/StorageService');
 const UploadsValidator = require('./validators/uploads');
 
 const init = async () => {
@@ -44,7 +45,7 @@ const init = async () => {
   const authenticationsService = new AuthenticationsService();
   const collaborationsService = new CollaborationsService();
   const playlistsService = new PlaylistsService(collaborationsService);
-  const storageService = new StorageService();
+  const storageService = new StorageService(path.resolve(__dirname, 'api/uploads/file/images'));
 
   const server = Hapi.server({
     port: process.env.PORT,

@@ -9,13 +9,13 @@ class UploadsHandler {
 
   async postUploadImageHandler(request, h) {
     const {cover} = request.payload;
-
     this._validator.validateImageHeaders(cover.hapi.headers);
+    const filename = await this._service.writeFile(data, data.hapi);
 
     const id = request.params.id;
-    const filename = await this._service.writeFile(cover, cover.hapi);
+    const fileUrl = `http://${process.env.HOST}:${process.env.PORT}/upload/images/${filename}`;
 
-    this.albumsService.addAlbumCover(id, filename);
+    this.albumsService.addAlbumCover(id, fileUrl);
     const response = h.response({
       status: 'success',
       message: 'Sampul berhasil diunggah',
