@@ -6,7 +6,7 @@ const NotFoundError = require('../../exceptions/NotFoundError');
 require('dotenv').config();
 
 class AlbumsService {
-  constructor() {
+  constructor(cacheService) {
     this._pool = new Pool({
       user: process.env.PGUSER,
       host: process.env.PGHOST,
@@ -14,6 +14,8 @@ class AlbumsService {
       password: process.env.PGPASSWORD,
       port: process.env.PGPORT,
     });
+
+    this._cacheService = cacheService;
   }
 
   async addAlbum({name, year}) {
@@ -105,6 +107,80 @@ class AlbumsService {
     const updateResult = await this._pool.query(updateQuery);
     if (!updateResult.rowCount) {
       throw new NotFoundError('Gagal memperbarui catatan. Id tidak ditemukan');
+    }
+  }
+
+  async postLikeAlbum(userId, id) {
+    const getAlbumQuery = {
+      text: 'SELECT * FROM albums WHERE id = $1',
+      values: [id],
+    };
+    const getAlbumResult = await this._pool.query(getAlbumQuery);
+
+    if (!getAlbumResult.rowCount) {
+      throw new NotFoundError('Album tidak ditemukan');
+    };
+
+    const getAlbumLikeQuery = {
+      text: 'SELECT * FROM album_like_activities WHERE album_id = $1 AND user_id = $2',
+      values: [id, userId],
+    };
+    const getAlbumLikeResult = await this._pool.query(getAlbumLikeQuery);
+
+    if (!getAlbumLikeResult.rowCount) {
+      const likeId = nanoid(16);
+      const createdAt = new Date().toISOString();
+      const createAlbumLikeQuery = {
+        text: 'INSERT INTO album_like_activities VALUES($1, $2, $3, $4, $4) RETURNING id',
+        values: [likeId, id, userId, createdAt],
+      };
+      const createAlbumLikeResult = await this._pool.query(createAlbumLikeQuery);
+      if (!createAlbumLikeResult.rowCount) {
+        throw new NotFoundError('Gagal menyukai album');
+      }
+    } else {
+      const deleteAlbumLikeQuery = {
+        text: 'DELETE FROM album_like_activities WHERE id = $1 RETURNING id',
+        values: [getAlbumLikeResult.rows[0].id],
+      };
+      const deleteAlbumLikeResult = await this._pool.query(deleteAlbumLikeQuery);
+
+      if (!deleteAlbumLikeResult.rowCount) {
+        throw new NotFoundError('Gagal batal menyukai album');
+      }
+    };
+    await this._cacheService.delete(`album:${id}`);
+  }
+
+  async getLikeAlbum(id) {
+    try {
+      const result = await this._cacheService.get(`album:${id}`);
+      return {
+        count: JSON.parse(result),
+        cached: true,
+      };
+    } catch (error) {
+      const getAlbumQuery = {
+        text: 'SELECT * FROM albums WHERE id = $1',
+        values: [id],
+      };
+      const getAlbumResult = await this._pool.query(getAlbumQuery);
+
+      if (!getAlbumResult.rowCount) {
+        throw new NotFoundError('Album tidak ditemukan');
+      };
+
+      const getLikeCountQuery = {
+        text: 'SELECT Count(id) FROM album_like_activities WHERE album_id = $1',
+        values: [id],
+      };
+      const result = await this._pool.query(getLikeCountQuery);
+      await this._cacheService.set(`album:${id}`, JSON.stringify(result.rows[0].count));
+
+      return {
+        count: result.rows[0].count,
+        cached: false,
+      };
     }
   }
 }
